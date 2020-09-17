@@ -25,17 +25,16 @@ const themeLight = {
 }
 
 
-
-
 const WbnPlayer = ({match, history, location}) =>{
 
     const videos = JSON.parse(document.querySelector('[name="videos"]').value);
+    const savedState = JSON.parse(localStorage.getItem(`${videos.playlistId}`));
     const [state, setState] = useState({
-        videos:videos.playlist,
-        activeVideo: videos.playlist[0],
-        nightMode: true,
-        playlistId: videos.playlistId,
-        autoplay: false
+        videos:savedState? savedState.videos:videos.playlist,
+        activeVideo:savedState? savedState.activeVideo: videos.playlist[0],
+        nightMode:savedState ? savedState.nightMode: true,
+        playlistId:savedState? savedState.playlistId : videos.playlistId,
+        autoplay:savedState? savedState.autoplay: false
     });
 
     useEffect(()=>{
@@ -56,12 +55,41 @@ const WbnPlayer = ({match, history, location}) =>{
 
     }, [history, location.autoplay, match.params.activeVideo, state.activeVideo.id, state.videos])
 
-    const nightModeCallback=()=>{};
-    const endCallback=()=>{};
-    const progressCallback=()=>{};
+    useEffect(()=>{
+        localStorage.setItem(`${state.playlistId}`, JSON.stringify({...state}));
+    }, [state])
+
+    const nightModeCallback=()=>{
+        setState(prevState=>({...prevState, nightMode:!prevState.nightMode}))
+    };
+
+    const endCallback=()=>{
+        const videoId = match.params.activeVideo;
+        const currentVideoIndex = state.videos.findIndex(
+            video=>video.id===videoId
+        );
+
+        const nextVideo = currentVideoIndex===state.videos.length - 1? 0 : currentVideoIndex+1;
+
+        history.push({
+            pathname: `${state.videos[nextVideo].id}`,
+            autoplay:false
+        })
+    };
+
+    const progressCallback=(e)=>{
+        if (e.playedSeconds > 10 && e.playedSeconds<11){
+            setState({
+                ...state,
+                videos: state.videos.map(element=>{
+                    return element.id===state.activeVideo.id ? {...element, played:true}: element;
+                })
+            })
+        }
+    };
 
     return(
-        <ThemeProvider theme={StaticRange.nightMode?theme:themeLight}>
+        <ThemeProvider theme={state.nightMode?theme:themeLight}>
         {state.videos !== null ? (
              <StyledWbnPlayer>
                  <Video
